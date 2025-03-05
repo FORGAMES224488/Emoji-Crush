@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Emoji Crush: Love & Heal</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #808080, #808080);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Arial', sans-serif;
+      transition: background 0.5s;
+    }
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      gap: 5px;
+      width: 310px;
+      margin: 20px auto;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .cell {
+      width: 60px;
+      height: 60px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: transform 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+    .cell.dragging {
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(255, 105, 180, 0.8);
+      z-index: 2;
+      opacity: 0.7;
+    }
+    .cell.matched {
+      animation: pop 0.3s ease-out forwards;
+    }
+    .cell.bounce {
+      animation: bounce 0.5s;
+    }
+    h1 {
+      color: #fff;
+      font-size: 32px;
+      margin: 20px 0;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    #score, #level, #timer, #healing-meter, #bond-meter {
+      font-size: 18px;
+      color: #fff;
+      margin: 5px 0;
+    }
+    .bar {
+      width: 150px;
+      height: 15px;
+      background: #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    #healing-meter .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff4040, #ff8080);
+      transition: width 0.5s ease;
+    }
+    #bond-meter .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff69b4, #ff1493);
+      transition: width 0.5s ease;
+    }
+    #share-button, #restart-button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: linear-gradient(45deg, #ff0066, #ff6b6b);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    #dialogue {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+      display: none;
+      text-align: center;
+    }
+    #dialogue button {
+      margin: 5px;
+      padding: 8px 16px;
+      background: #ff69b4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(0); }
+    }
+    @keyframes bounce {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-2px); }
+      100% { transform: translateX(0); }
+    }
+    .coin {
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      background: radial-gradient(circle, #ffd700, #ffa500);
+      border-radius: 50%;
+      border: 1px solid #fff;
+      z-index: 5;
+    }
+    .coin-1 { animation: swirl1 1s ease-out forwards; }
+    .coin-2 { animation: swirl2 1s ease-out forwards; }
+    .coin-3 { animation: swirl3 1s ease-out forwards; }
+    .coin-4 { animation: swirl4 1s ease-out forwards; }
+    @keyframes swirl1 {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(30px, -60px) rotate(360deg) scale(0.5); opacity: 0; }
+    }
+    @keyframes swirl2 {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(-30px, -60px) rotate(-360deg) scale(0.5); opacity: 0; }
+    }
+    @keyframes swirl3 {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(15px, -70px) rotate(180deg) scale(0.5); opacity: 0; }
+    }
+    @keyframes swirl4 {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(-15px, -70px) rotate(-180deg) scale(0.5); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Emoji Crush: Love & Heal</h1>
+  <div id="score">Score: 0</div>
+  <div id="level">Level: 1</div>
+  <div id="timer">Time: 60</div>
+  <div id="healing-meter">Healing: <div class="bar"><div class="fill" style="width: 100%"></div></div></div>
+  <div id="bond-meter">Bond: <div class="bar"><div class="fill" style="width: 0%"></div></div></div>
+  <div id="game-board"></div>
+  <button id="share-button">Share Your Journey!</button>
+  <button id="restart-button">Restart Game</button>
+  <div id="dialogue">
+    <p id="dialogue-text"></p>
+    <button id="choice1"></button>
+    <button id="choice2"></button>
+    <button id="choice3"></button>
+  </div>
+  <script>
+    const emojis = ['😍', '💖', '😂', '💀', '🔥'];
+    const board = document.getElementById('game-board');
+    const shareButton = document.getElementById('share-button');
+    const restartButton = document.getElementById('restart-button');
+    const dialogue = document.getElementById('dialogue');
+    const dialogueText = document.getElementById('dialogue-text');
+    const choice1 = document.getElementById('choice1');
+    const choice2 = document.getElementById('choice2');
+    const choice3 = document.getElementById('choice3');
+    let grid = [];
+    let score = 0;
+    let level = 1;
+    let timeLeft = 60;
+    let healing = 100;
+    let bondPoints = 0;
+    let isProcessing = false;
+    let timerId;
+    let storyStage = 0;
+    let powerUps = { rainbow: 0, bomb: 0 };
+    let lastMatchTime = Date.now(); // Track time since last match
+
+    // Initialize grid
+    function initGrid() {
+      board.innerHTML = '';
+      grid = [];
+      for (let i = 0; i < 5; i++) {
+        grid[i] = [];
+        for (let j = 0; j < 5; j++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          cell.dataset.row = i;
+          cell.dataset.col = j;
+          cell.draggable = true;
+          cell.addEventListener('dragstart', dragStart);
+          cell.addEventListener('dragover', dragOver);
+          cell.addEventListener('drop', drop);
+          cell.addEventListener('touchstart', touchStart, { passive: false });
+          cell.addEventListener('touchmove', touchMove, { passive: false });
+          cell.addEventListener('touchend', touchEnd);
+          board.appendChild(cell);
+          grid[i][j] = cell;
+        }
+      }
+      removeInitialMatches();
+      ensurePossibleMoves();
+      updateUI();
+    }
+
+    // Remove initial matches
+    function removeInitialMatches() {
+      let matches = findMatches();
+      while (matches.length > 0) {
+        matches.forEach(match => {
+          match.forEach(([i, j]) => {
+            grid[i][j].textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          });
+        });
+        matches = findMatches();
+      }
+    }
+
+    // Ensure possible moves
+    function ensurePossibleMoves() {
+      if (!hasPossibleMoves()) {
+        shuffleBoard();
+        alert('No moves available! Board reshuffled.');
+      }
+    }
+
+    // Check for possible moves
+    function hasPossibleMoves() {
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          if (j < 4 && testSwap(i, j, i, j + 1)) return true;
+          if (i < 4 && testSwap(i, j, i + 1, j)) return true;
+        }
+      }
+      return false;
+    }
+
+    // Test if a swap creates a match
+    function testSwap(row1, col1, row2, col2) {
+      const temp = grid[row1][col1].textContent;
+      grid[row1][col1].textContent = grid[row2][col2].textContent;
+      grid[row2][col2].textContent = temp;
+      const matches = findMatches();
+      grid[row2][col2].textContent = grid[row1][col1].textContent;
+      grid[row1][col1].textContent = temp;
+      return matches.length > 0;
+    }
+
+    // Desktop drag-and-drop
+    function dragStart(e) {
+      if (isProcessing) return;
+      e.target.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', `${e.target.dataset.row},${e.target.dataset.col}`);
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+    }
+
+    function drop(e) {
+      e.preventDefault();
+      if (isProcessing) return;
+      const draggedCell = document.querySelector('.dragging');
+      if (!draggedCell) return;
+      const row1 = parseInt(draggedCell.dataset.row);
+      const col1 = parseInt(draggedCell.dataset.col);
+      const row2 = parseInt(e.target.dataset.row);
+      const col2 = parseInt(e.target.dataset.col);
+      draggedCell.classList.remove('dragging');
+
+      if (Math.abs(row1 - row2) + Math.abs(col1 - col2) === 1) {
+        attemptSwap(row1, col1, row2, col2);
+      } else {
+        grid[row1][col1].classList.add('bounce');
+        setTimeout(() => grid[row1][col1].classList.remove('bounce'), 500);
+      }
+    }
+
+    // Mobile swipe
+    let touchStartX, touchStartY, touchCell;
+    function touchStart(e) {
+      if (isProcessing) return;
+      e.preventDefault();
+      touchCell = e.target;
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchCell.classList.add('dragging');
+    }
+
+    function touchMove(e) {
+      if (!touchCell || isProcessing) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      touchCell.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    function touchEnd(e) {
+      if (!touchCell || isProcessing) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      const row1 = parseInt(touchCell.dataset.row);
+      const col1 = parseInt(touchCell.dataset.col);
+      let row2 = row1;
+      let col2 = col1;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 20 && col1 < 4) col2 = col1 + 1;
+        else if (dx < -20 && col1 > 0) col2 = col1 - 1;
+      } else {
+        if (dy > 20 && row1 < 4) row2 = row1 + 1;
+        else if (dy < -20 && row1 > 0) row2 = row1 - 1;
+      }
+
+      touchCell.style.transform = '';
+      touchCell.classList.remove('dragging');
+
+      if (row1 !== row2 || col1 !== col2) {
+        attemptSwap(row1, col1, row2, col2);
+      }
+      touchCell = null;
+    }
+
+    // Attempt swap
+    function attemptSwap(row1, col1, row2, col2) {
+      if (isProcessing) return;
+      isProcessing = true;
+      if (testSwap(row1, col1, row2, col2)) {
+        swap(row1, col1, row2, col2);
+        handleMatches();
+      } else {
+        grid[row1][col1].classList.add('bounce');
+        setTimeout(() => grid[row1][col1].classList.remove('bounce'), 500);
+      }
+      setTimeout(() => { 
+        isProcessing = false; 
+        ensurePossibleMoves();
+      }, 500);
+    }
+
+    // Swap cells
+    function swap(row1, col1, row2, col2) {
+      const temp = grid[row1][col1].textContent;
+      grid[row1][col1].textContent = grid[row2][col2].textContent;
+      grid[row2][col2].textContent = temp;
+    }
+
+    // Find matches
+    function findMatches() {
+      const matches = [];
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (grid[i][j].textContent === grid[i][j+1].textContent && 
+              grid[i][j].textContent === grid[i][j+2].textContent) {
+            const match = [[i, j], [i, j+1], [i, j+2]];
+            if (j <= 1 && grid[i][j].textContent === grid[i][j+3].textContent) match.push([i, j+3]);
+            if (j === 0 && grid[i][j].textContent === grid[i][j+4].textContent) match.push([i, j+4]);
+            matches.push(match);
+          }
+        }
+        for (let j = 0; j < 5; j++) {
+          if (i < 3 && grid[i][j].textContent === grid[i+1][j].textContent && 
+              grid[i][j].textContent === grid[i+2][j].textContent) {
+            const match = [[i, j], [i+1, j], [i+2, j]];
+            if (i <= 1 && grid[i][j].textContent === grid[i+3][j].textContent) match.push([i+3, j]);
+            if (i === 0 && grid[i][j].textContent === grid[i+4][j].textContent) match.push([i+4, j]);
+            matches.push(match);
+          }
+        }
+      }
+      return matches;
+    }
+
+    // Handle matches
+    function handleMatches() {
+      let matches = findMatches();
+      if (matches.length === 0) {
+        ensurePossibleMoves();
+        return;
+      }
+
+      matches.forEach(match => {
+        if (match.length >= 4) grantPowerUp(match.length);
+        match.forEach(([i, j]) => {
+          grid[i][j].classList.add('matched');
+          score += 10;
+          const emoji = grid[i][j].textContent;
+          if (emoji === '😍' || emoji === '💖') bondPoints = Math.min(bondPoints + 5, 100);
+          else if (emoji === '😂') bondPoints = Math.min(bondPoints + 3, 100);
+        });
+        addCoinAnimation(match[0][0], match[0][1]);
+      });
+
+      lastMatchTime = Date.now(); // Update last match time
+
+      setTimeout(() => {
+        matches.forEach(match => {
+          match.forEach(([i, j]) => {
+            grid[i][j].classList.remove('matched');
+            grid[i][j].textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          });
+        });
+        // Accelerated healing decay when time is low
+        healing = Math.max(healing - (timeLeft <= 20 ? 10 : 5), 0);
+        updateUI();
+        if (bondPoints === 100 && healing === 0) endLevel();
+        handleMatches();
+      }, 300);
+    }
+
+    // Grant power-ups (no popup)
+    function grantPowerUp(size) {
+      if (size === 4) powerUps.rainbow++;
+      else if (size >= 5) powerUps.bomb++;
+      console.log(`Power-Up Earned! 🌈: ${powerUps.rainbow}, 🔥: ${powerUps.bomb}`);
+    }
+
+    // Use Rainbow Love
+    function useRainbowLove(emoji) {
+      if (powerUps.rainbow <= 0) return;
+      powerUps.rainbow--;
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          if (grid[i][j].textContent === emoji) {
+            grid[i][j].classList.add('matched');
+            score += 10;
+          }
+        }
+      }
+      setTimeout(handleMatches, 300);
+    }
+
+    // Use Passion Bomb
+    function usePassionBomb(row, col) {
+      if (powerUps.bomb <= 0) return;
+      powerUps.bomb--;
+      const targets = [
+        [row-1, col], [row+1, col], [row, col-1], [row, col+1],
+        [row-1, col-1], [row-1, col+1], [row+1, col-1], [row+1, col+1]
+      ];
+      targets.forEach(([r, c]) => {
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+          grid[r][c].classList.add('matched');
+          score += 10;
+        }
+      });
+      setTimeout(handleMatches, 300);
+    }
+
+    // Add coin animation
+    function addCoinAnimation(row, col) {
+      const cell = grid[row][col];
+      const rect = cell.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2 - 7.5;
+      const centerY = rect.top + rect.height / 2 - 7.5;
+      for (let i = 1; i <= 4; i++) {
+        const coin = document.createElement('div');
+        coin.className = `coin coin-${i}`;
+        coin.style.left = `${centerX}px`;
+        coin.style.top = `${centerY}px`;
+        document.body.appendChild(coin);
+        setTimeout(() => coin.remove(), 1000);
+      }
+    }
+
+    // Shuffle board
+    function shuffleBoard() {
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          grid[i][j].textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        }
+      }
+      removeInitialMatches();
+      ensurePossibleMoves();
+      updateUI();
+    }
+
+    // Update UI with tension visuals
+    function updateUI() {
+      document.getElementById('score').textContent = `Score: ${score}`;
+      document.getElementById('level').textContent = `Level: ${level}`;
+      document.getElementById('timer').textContent = `Time: ${timeLeft}`;
+      document.querySelector('#healing-meter .fill').style.width = `${healing}%`;
+      document.querySelector('#bond-meter .fill').style.width = `${bondPoints}%`;
+      
+      // Dynamic background based on time and healing
+      const tensionColor = timeLeft <= 20 || healing <= 30 ? '#ff4040' : '#ff69b4';
+      document.body.style.background = `linear-gradient(135deg, #808080, ${tensionColor} ${Math.min(healing, 100)}%)`;
+    }
+
+    // End level
+    function endLevel() {
+      clearInterval(timerId);
+      dialogueText.textContent = `Level ${level} Complete! Continue?`;
+      choice1.textContent = "Next Level";
+      choice2.textContent = "Quit";
+      choice1.onclick = () => { nextLevel(); dialogue.style.display = 'none'; };
+      choice2.onclick = () => { resetGame(); dialogue.style.display = 'none'; };
+      choice3.style.display = 'none';
+      dialogue.style.display = 'block';
+    }
+
+    // Story dialogue (optional mid-level events)
+    function showStoryDialogue() {
+      if (storyStage === 0 && bondPoints >= 50) {
+        dialogueText.textContent = "Should I text them? 🤔";
+        choice1.textContent = "Yes";
+        choice2.textContent = "No";
+        choice1.onclick = () => { bondPoints += 10; dialogue.style.display = 'none'; updateUI(); };
+        choice2.onclick = () => { healing -= 10; dialogue.style.display = 'none'; updateUI(); };
+        choice3.style.display = 'none';
+        dialogue.style.display = 'block';
+        storyStage++;
+      }
+    }
+
+    // Next level
+    function nextLevel() {
+      level++;
+      timeLeft = 60;
+      healing = 100;
+      bondPoints = 0;
+      lastMatchTime = Date.now();
+      clearInterval(timerId);
+      shuffleBoard();
+      startTimer();
+      showStoryDialogue();
+    }
+
+    // Start timer with dynamic adjustments
+    function startTimer() {
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        timeLeft--;
+        
+        // Dynamic timer penalty: lose an extra second if no match in 10 seconds
+        const timeSinceLastMatch = (Date.now() - lastMatchTime) / 1000;
+        if (timeSinceLastMatch > 10 && timeLeft > 1) {
+          timeLeft--;
+          console.log("Hurry up! Time penalty applied.");
+        }
+
+        updateUI();
+        if (timeLeft <= 0) {
+          clearInterval(timerId);
+          alert('Time’s up! Game Over.');
+          resetGame();
+        }
+      }, 1000);
+    }
+
+    // Reset game
+    function resetGame() {
+      score = 0;
+      level = 1;
+      timeLeft = 60;
+      healing = 100;
+      bondPoints = 0;
+      storyStage = 0;
+      powerUps = { rainbow: 0, bomb: 0 };
+      lastMatchTime = Date.now();
+      initGrid();
+      startTimer();
+    }
+
+    // Share feature
+    shareButton.addEventListener('click', () => {
+      const shareText = `Level ${level}, ${healing}% healing, ${bondPoints}% bond in Emoji Crush!`;
+      if (navigator.share) {
+        navigator.share({ title: 'Emoji Crush', text: shareText, url: window.location.href });
+      } else {
+        prompt('Copy to share:', shareText);
+      }
+    });
+
+    // Restart button functionality
+    restartButton.addEventListener('click', () => {
+      resetGame();
+    });
+
+    // Power-up testing
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'r') useRainbowLove('😍');
+      if (e.key === 'b') usePassionBomb(2, 2);
+    });
+
+    // Start game
+    initGrid();
+    startTimer();
+  </script>
+</body>
+</html>
